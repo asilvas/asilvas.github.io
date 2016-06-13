@@ -432,7 +432,7 @@
   <td class="right">June TBD, 2016</td>
 </tr>
 <tr>
-  <td class="left">Expires: December 7, 2016</td>
+  <td class="left">Expires: December 14, 2016</td>
   <td class="right"></td>
 </tr>
 
@@ -453,7 +453,7 @@
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on December 7, 2016.</p>
+<p>This Internet-Draft will expire on December 14, 2016.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -509,33 +509,31 @@
 <p>Here we can begin to see the problem with vanilla HTTP/2 <a href="#RFC7540">[RFC7540]</a> Server Push using one of many custom cookie-based implementations to manage client state.</p>
 <pre>
 
-  +---------------+------------------+
-  |  Empty Cache  | Request A        |
-  +---------------+------------------+
-                  | PUSH_PROMISE A1  |
-                  +------------------+
-                  | PUSH_PROMISE AB1 |
-                  +------------------+
-                  | Response A       |
-                  +------------------+
-                  | Response A1      |
-                  +------------------+
-                  | Response AB1     |
-  +---------------+------------------+
-  | Partial Cache | Request B        |
-  +---------------+------------------+
-                  | PUSH_PROMISE B1  |
-                  +------------------+
-                  | PUSH_PROMISE AB1 | &lt;== EVIL
-                  +------------------+
-                  | Response B       |
-                  +------------------+
-                  | Response B1      |
-                  +------------------+
-                  | Response AB1     | &lt;== EVIL
-                  +------------------+
-                  | RST_STREAM AB1   | &lt;== EVIL
-                  +------------------+
++----------------------------+-------------------------+
+| Client                     | Server                  |
++----------------------------+-------------------------+
+| [         TCP+TLS+HTTP/2 Negotiation             ]   |
+|                            |                         |
+| GET /A.html       =======&gt; |                         |
+|                   &lt;======= | PUSH_PROMISE GET /A1.js |
+|                   &lt;======= | PUSH_PROMISE GET /AB.js |
+|                   &lt;======= | GET /A.html             |
+|                   &lt;======= | GET /A1.js              |
+|                   &lt;======= | GET /AB.js              |
+| [Page Complete]            |                         |
+|                            |                         |
+| [Navigate to "/B"]         |                         |
+|                            |                         |
+| GET /B.html       =======&gt; |                         |
+|                   &lt;======= | PUSH_PROMISE GET /B1.js |
+|                   &lt;======= | PUSH_PROMISE GET /AB.js | (Server doesn't know Client has this)
+|                   &lt;======= | GET /B.html             |
+|                   &lt;======= | GET /B1.js              |
+| RST_STREAM /AB.js =======&gt; | (Hault transfer)        |
+|                   &lt;======= | GET /AB.js              | (Cancelled pre-flight, may be fully
+|                            |                         | transferred before RST_STREAM
+| [Page Complete]            |                         | received)
++----------------------------+-------------------------+
 
 </pre>
 <p>While in some situations cookie-based management will address the above, ultimately it'll vary depending on the complexity of the origin, including but not limited to the number of assets and the frequency of change.</p>
@@ -545,27 +543,27 @@
 <p>With <samp>Push-Assets</samp> enabled both client and server adhere to a strict dependency state contract.</p>
 <pre>
 
-  +---------------+------------------+
-  |  Empty Cache  | Request A        |
-  +---------------+------------------+
-                  | PUSH_PROMISE A1  |
-                  +------------------+
-                  | PUSH_PROMISE AB1 |
-                  +------------------+
-                  | Response A       |
-                  +------------------+
-                  | Response A1      |
-                  +------------------+
-                  | Response AB1     |
-  +---------------+------------------+
-  | Partial Cache | Request B        |
-  +---------------+------------------+
-                  | PUSH_PROMISE B1  |
-                  +------------------+
-                  | Response B       |
-                  +------------------+
-                  | Response B1      |
-                  +------------------+
++----------------------------+-------------------------+
+| Client                     | Server                  |
++----------------------------+-------------------------+
+| [         TCP+TLS+HTTP/2 Negotiation             ]   |
+|                            |                         |
+| GET /A.html       =======&gt; |                         |
+|                   &lt;======= | PUSH_PROMISE GET /A1.js |
+|                   &lt;======= | PUSH_PROMISE GET /AB.js |
+|                   &lt;======= | GET /A.html             |
+|                   &lt;======= | GET /A1.js              |
+|                   &lt;======= | GET /AB.js              |
+| [Page Complete]            |                         |
+|                            |                         |
+| [Navigate to "/B"]         |                         |
+|                            |                         |
+| GET /B.html       =======&gt; |                         |
+|                   &lt;======= | PUSH_PROMISE GET /B1.js |
+|                   &lt;======= | GET /B.html             |
+|                   &lt;======= | GET /B1.js              |
+| [Page Complete]            |                         |
++----------------------------+-------------------------+
 
 </pre>
 <p>Avoiding needless waste, the benefits of <samp>Push-Assets</samp> far outweighs the additional header data needed to track client state.</p>
